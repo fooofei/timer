@@ -164,6 +164,7 @@ def example():
     sched = Timer(clock_id=CLOCK_MONOTONIC,
                   flags=TFD_NONBLOCK | TFD_CLOEXEC)
 
+    # if not use every, the timer will notify noce, and block forever.
     sched.after(3,0).every(3,0)
     sched.update(absolute=False)
     efd = epoll()
