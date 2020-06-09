@@ -125,8 +125,10 @@ class Timer(object):
             return old_timer
 
         def close(self):
-            _close(self.fileno())
+	    if self.fileno() > 0 :
+            	_close(self.fileno())
             self._fd = -1
+	
         def readev(self):
             data = _read(self.fileno(), 8)
             return data
