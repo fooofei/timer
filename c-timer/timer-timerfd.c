@@ -1,6 +1,7 @@
 
 
 // gcc timer-timerfd.c -o timer-timerfd
+// timerfd 更像是 go 中的 ticker 
 
 #include <stdio.h>
 #include <string.h>
