@@ -20,6 +20,7 @@ func New(d time.Duration) *Timer {
 }
 
 // Wait just returns t.T.C for read
+// MUST call t.SetUnActive() after read Wait() success
 func (t *Timer) Wait() <-chan time.Time {
 	return t.T.C
 }
