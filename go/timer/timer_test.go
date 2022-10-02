@@ -113,3 +113,22 @@ func TestMyTimerReset(tst *testing.T) {
 	}
 	assert.Equal(tst, myTimerNotArrive, whichArrive)
 }
+
+func TestMyTimerStopReuse(tst *testing.T) {
+	var t = New(time.Second)
+	defer t.Stop()
+
+	t.Stop()
+	const myTimerArrive = "my timer arrived"
+	const myTimerNotArrive = "my timer not arrived"
+	var whichArrive string
+	select {
+	case <-t.After(time.Second):
+		t.SetUnActive()
+		whichArrive = myTimerArrive
+	case <-time.After(5 * time.Second):
+		whichArrive = myTimerNotArrive
+	}
+	assert.Equal(tst, myTimerArrive, whichArrive)
+
+}
