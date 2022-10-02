@@ -2,11 +2,13 @@ package timer
 
 import (
 	"fmt"
-	"github.com/shoenig/test"
+	"github.com/stretchr/testify/assert"
 	"runtime"
 	"testing"
 	"time"
 )
+
+// "github.com/shoenig/test" 还不够好用，失败后，不打印哪个是 expect 只看到不相登
 
 func reuseTimerWithLength(t *time.Timer, d time.Duration) {
 	if !t.Stop() && len(t.C) > 0 {
@@ -47,8 +49,8 @@ func waitTimerWithLength() error {
 	}
 }
 
-// TestWaitTimerWithDefault 证明 select default 也不能正确使用 timer.Reset
-func TestWaitTimerWithDefault(t *testing.T) {
+// TestErrorUseWaitTimerWithDefault 证明 select default 也不能正确使用 timer.Reset
+func TestErrorUseWaitTimerWithDefault(t *testing.T) {
 	runtime.GOMAXPROCS(2)
 	for i := 0; ; i++ {
 		if err := waitTimerWithDefault(); err != nil {
@@ -59,8 +61,8 @@ func TestWaitTimerWithDefault(t *testing.T) {
 
 }
 
-// TestWaitTimerWithLength 证明 len(timer.C) 也不能正确使用 timer.Reset
-func TestWaitTimerWithLength(t *testing.T) {
+// TestErrorUseWaitTimerWithLength 证明 len(timer.C) 也不能正确使用 timer.Reset
+func TestErrorUseWaitTimerWithLength(t *testing.T) {
 	runtime.GOMAXPROCS(2)
 	for i := 0; ; i++ {
 		if err := waitTimerWithLength(); err != nil {
@@ -71,39 +73,43 @@ func TestWaitTimerWithLength(t *testing.T) {
 }
 
 func TestMyTimerReset(tst *testing.T) {
-	t := New(time.Second)
+	var t = New(time.Second)
 	defer t.Stop()
 
 	tst.Logf("wait 1s")
-	timerArrive := false
+	const myTimerArrive = "my timer arrived"
+	const myTimerNotArrive = "my timer not arrived"
+	var whichArrive string
 	select {
 	case <-t.After(2 * time.Second):
 		t.SetUnActive()
-		timerArrive = true
+		whichArrive = myTimerArrive
 	case <-time.After(time.Second):
-		timerArrive = false
+		whichArrive = myTimerNotArrive
+		// when this done, our timer is not triggered, and will set un-active for next use.
 	}
-	test.Eq(tst, timerArrive, false)
+	assert.Equal(tst, myTimerNotArrive, whichArrive)
 
 	tst.Logf("wait 2s")
+	whichArrive = ""
 
 	select {
 	case <-t.After(2 * time.Second):
 		t.SetUnActive()
-		timerArrive = true
+		whichArrive = myTimerArrive
 	case <-time.After(4 * time.Second):
-		timerArrive = false
+		whichArrive = myTimerNotArrive
 	}
-	test.Eq(tst, timerArrive, true)
+	assert.Equal(tst, myTimerArrive, whichArrive)
 
 	tst.Logf("wait 1s")
-	timerArrive = false
+	whichArrive = ""
 	select {
 	case <-t.After(3 * time.Second):
 		t.SetUnActive()
-		timerArrive = true
+		whichArrive = myTimerArrive
 	case <-time.After(time.Second):
-		timerArrive = false
+		whichArrive = myTimerNotArrive
 	}
-	test.Eq(tst, timerArrive, false)
+	assert.Equal(tst, myTimerNotArrive, whichArrive)
 }

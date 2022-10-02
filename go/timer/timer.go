@@ -8,21 +8,38 @@ import (
 // Timer is a wrapper of time.Timer for correct use of timer.Reset
 
 type Timer struct {
-	T      *time.Timer
-	active int64
+	t      *time.Timer
+	active atomic.Int32
 }
 
+// New will create a new timer with d for trigger
+// You can use as
+//
+//	    t := New(time.Second)
+//		defer t.Stop()
+//
+//		select {
+//		case <-t.After(2 * time.Second):
+//			t.SetUnActive()
+//		    // do something
+//		}
 func New(d time.Duration) *Timer {
-	return &Timer{
-		T:      time.NewTimer(d),
-		active: 1,
+	var t = &Timer{
+		t: time.NewTimer(d),
 	}
+	t.setActive()
+	return t
 }
 
-// Wait just returns t.T.C for read
+// After is not recommend use
+// func After(d time.Duration) <-chan time.Time {
+//	return New(d).Wait()
+// }
+
+// Wait just returns t.t.C for read
 // MUST call t.SetUnActive() after read Wait() success
 func (t *Timer) Wait() <-chan time.Time {
-	return t.T.C
+	return t.t.C
 }
 
 // After will restart a new timer with dur
@@ -33,27 +50,27 @@ func (t *Timer) After(dur time.Duration) <-chan time.Time {
 	return t.Wait()
 }
 
-// SetUnActive will mark the t.T.C is drained
+// SetUnActive will mark the t.t.C is drained
 // please must call it when Wait() returned
 func (t *Timer) SetUnActive() {
-	atomic.AddInt64(&t.active, -1)
+	t.active.Add(-1)
 }
 
 func (t *Timer) setActive() {
-	atomic.AddInt64(&t.active, 1)
+	t.active.Add(1)
 }
 
 // Stop will stop timer safely than time.Timer Stop()
-// It will read the dirty data from t.T.C for keep t.T.C clean
+// It will read the dirty data from t.t.C for keep t.t.C clean
 func (t *Timer) Stop() bool {
-	success := t.T.Stop()
-	if !success && atomic.LoadInt64(&t.active) > 1 {
-		<-t.T.C
+	success := t.t.Stop()
+	if !success && t.active.Load() > 1 {
+		<-t.Wait()
 		t.SetUnActive()
 	}
 	if success {
-		// when stop success, no more sendTimer, the T.C is empty,
-		// the the un-active status, not read from T.C
+		// when stop success, no more sendTimer, the t.C is empty,
+		// we reset to un-active status, prevent others read from t.C
 		t.SetUnActive()
 	}
 	return success
@@ -63,12 +80,12 @@ func (t *Timer) Stop() bool {
 // old timer will be stop safely
 func (t *Timer) Reset(dur time.Duration) bool {
 	t.Stop()
-	active := t.T.Reset(dur)
+	active := t.t.Reset(dur)
 	t.setActive()
 	return active
 }
 
-// Go's timer:
+// Go's timer has errors:
 // 1、Not stopped timer is in active status, and timer.C maybe pushed sometime
 // 2、Go ask us to call timer.Stop() before timer.Reset
 // 3、If t.Stop() return true, then timer.C will never be pushed. When t.Stop() return false,
